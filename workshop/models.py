@@ -17,18 +17,18 @@ class Order(models.Model):
             default=uuid.uuid4,
             editable=False,       
     )
-    order_name = models.CharField(max_length=50)
-    order_description = models.TextField(blank=True)
-    order_date_creation = models.DateTimeField(auto_now_add=True)
-    order_date_completion = models.DateTimeField()
-    order_status = models.CharField(
+    name = models.CharField(max_length=50)
+    description = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_completion = models.DateTimeField()
+    status = models.CharField(
             max_length=20,
             choices=STATUS_POSSIBLE,
             default="pending"
     )
 
     def __str__(self):
-        return self.order_name
+        return self.name
 
 
 class Machine(models.Model):
@@ -53,18 +53,18 @@ class Machine(models.Model):
             default=uuid.uuid4,
             editable=False,       
     )
-    machine_name = models.CharField(max_length=50)
-    machine_description = models.TextField(blank=True)
+    name = models.CharField(max_length=50)
+    description = models.TextField(blank=True)
     machine_type = models.CharField(max_length=50, choices=TYPE_POSSIBLE)
-    machine_status = models.CharField(
+    status = models.CharField(
             max_length=20,
             choices=STATUS_POSSIBLE,
             default="idle"
     )
-    machine_location = models.CharField(max_length=50, blank=True)
+    location = models.CharField(max_length=50, blank=True)
 
     def __str__(self):
-        return self.machine_name
+        return self.name
 
 
 class Task(models.Model):
@@ -84,31 +84,31 @@ class Task(models.Model):
             default=uuid.uuid4,
             editable=False,
     )
-    task_order = models.ForeignKey(
+    order = models.ForeignKey(
             Order,
             on_delete=models.CASCADE,
             related_name="tasks"
     )
-    task_machine = models.ForeignKey(
+    machine = models.ForeignKey(
             Machine,
             on_delete=models.CASCADE,
             related_name="tasks",
     )
-    task_operation = models.CharField(max_length=50)
-    task_queue_number = models.PositiveIntegerField()
-    task_status = models.CharField(
+    operation = models.CharField(max_length=50)
+    queue_number = models.PositiveIntegerField()
+    status = models.CharField(
             max_length=20,
             choices=STATUS_POSSIBLE,
             default="pending"
     )
-    task_start_time = models.DateTimeField(null=True, blank=True)
-    task_finish_time = models.DateTimeField(null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    finish_time = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["task_queue_number"]
+        ordering = ["queue_number"]
 
     def __str__(self):
-        return f"{self.task_operation} on {self.task_machine.machine_name}"
+        return f"{self.operation} on {self.machine.name}"
 
 
 class ActivityLog(models.Model):
@@ -124,13 +124,13 @@ class ActivityLog(models.Model):
             default=uuid.uuid4,
             editable=False
     )
-    log_task = models.ForeignKey(
+    task = models.ForeignKey(
             Task,
             on_delete=models.CASCADE,
             related_name="logs"
     )
-    log_time = models.DateTimeField(auto_now_add=True)
-    log_message = models.TextField()
+    time = models.DateTimeField(auto_now_add=True)
+    message = models.TextField()
     log_type = models.CharField(
             max_length=10,
             choices=LOG_POSSIBLE,
@@ -138,4 +138,4 @@ class ActivityLog(models.Model):
     )
 
     def __str__(self):
-        return f"[{self.log_type.upper()}] {self.log_time} - Task {self.log_task.task_id}"
+        return f"[{self.type.upper()}] {self.time} - Task {self.task.task_id}"
