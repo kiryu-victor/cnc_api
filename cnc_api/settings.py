@@ -142,3 +142,6 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend"
     ]
 }
+
+# Tell Swagger that I don't want the old compatibility
+SWAGGER_USE_COMPAT_RENDERERS = False
