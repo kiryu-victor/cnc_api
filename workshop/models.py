@@ -15,7 +15,7 @@ class Order(models.Model):
     order_id = models.UUIDField(
             primary_key=True,
             default=uuid.uuid4,
-            editable=False,       
+            editable=False,
     )
     name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
@@ -79,6 +79,7 @@ class Task(models.Model):
         ("failed", "Failed"),
     ]
 
+	# Attributes
     task_id = models.UUIDField(
             primary_key=True,
             default=uuid.uuid4,
@@ -112,13 +113,14 @@ class Task(models.Model):
 
 
 class ActivityLog(models.Model):
-    """Represents an event that has happened during the execution on a task."""
+    """Represents an event that has happened during the execution of a task."""
     LOG_POSSIBLE = [
         ("info", "Info"),
         ("warning", "Warning"),
         ("error", "Error"),
     ]
 
+	# Attributes
     log_id = models.UUIDField(
             primary_key=True,
             default=uuid.uuid4,
