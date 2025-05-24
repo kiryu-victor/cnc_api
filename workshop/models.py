@@ -79,7 +79,7 @@ class Task(models.Model):
         ("failed", "Failed"),
     ]
 
-	# Attributes
+    # Attributes
     task_id = models.UUIDField(
             primary_key=True,
             default=uuid.uuid4,
@@ -90,9 +90,16 @@ class Task(models.Model):
             on_delete=models.CASCADE,
             related_name="tasks"
     )
+    required_machine_type = models.CharField(
+            max_length=20,
+            choices=Machine.TYPE_POSSIBLE,
+            default="lathe"
+    )
     machine = models.ForeignKey(
             Machine,
             on_delete=models.CASCADE,
+            blank=True,
+            null=True,
             related_name="tasks",
     )
     operation = models.CharField(max_length=50)
@@ -109,7 +116,7 @@ class Task(models.Model):
         ordering = ["queue_number"]
 
     def __str__(self):
-        return f"{self.operation} on {self.machine.name}"
+        return f"{self.operation}"
 
 
 class ActivityLog(models.Model):
@@ -120,7 +127,7 @@ class ActivityLog(models.Model):
         ("error", "Error"),
     ]
 
-	# Attributes
+    # Attributes
     log_id = models.UUIDField(
             primary_key=True,
             default=uuid.uuid4,

@@ -18,7 +18,7 @@ class MachineAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ("operation", "order", "machine", "status", "queue_number")
+    list_display = ("operation", "order", "required_machine_type", "machine", "status", "queue_number")
     list_filter = ("status", "machine")
     search_fields = ("operation",)
 

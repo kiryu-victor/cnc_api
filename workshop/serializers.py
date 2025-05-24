@@ -17,6 +17,10 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = "__all__"
+        # Lets a Task have null values for "machine"
+        extra_kwargs = {
+                "machine": {"required": False, "allow_null": True}
+        }
 
 class OrderSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)

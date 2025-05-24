@@ -3,15 +3,18 @@ Create the endpoints logic for the classes.
 Each class responds to each resource.
 ModelViewSet simplifies the API creating CRUD for each model.
 """
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Order, Machine, Task, ActivityLog
 from .permissions import IsAdminOrReadOnly
 from .serializers import OrderSerializer, MachineSerializer, TaskSerializer, ActivityLogSerializer
+from .services import start_task_with_auto_machine_assignation as start_auto
 
 # Create your views here.
 class OrderViewSet(viewsets.ModelViewSet):
@@ -27,8 +30,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     def start(self, request, pk=None):
         """
         Start an order.
+        Task must have machines assigned.
+        Only "pending" tasks can be start ed.
         Then activate the first task.
-        Only "pending" tasks can be started.
         """
         order = self.get_object()
 
@@ -42,22 +46,24 @@ class OrderViewSet(viewsets.ModelViewSet):
                 {"detail": "Cannot start a completed or cancelled order."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        message = f"Order {order.name} started."
+        # Get the first task on the queue
+        first_task = order.tasks.order_by("queue_number").first()
+        # Start it
+        if first_task:
+            try:
+                task = start_auto(first_task)
+                message += f" Order started. First task {task.operation} started."
+            except ValidationError as e:
+                message += f" First task did not start: {str(e.detail)}"
+
         # Change the status and save the updated order
         order.status = "in_progress"
         order.save()
 
-        # Get the first task on the queue
-        first_task = order.tasks.order_by("queue_number").first()
-        # Start it
-        if first_task and first_task.status == "pending":
-            first_task.status = "in_progress"
-            first_task.start_time  = timezone.now()
-            first_task.save()
-            message = f"Order started. Task '{first_task.operation}' is in progress."
-        else:
-            message = "Order started. No tasks on queue activated."
-
         return Response({"detail": message})
+
 
 class MachineViewSet(viewsets.ModelViewSet):
     # Give the permissions set in permissions.py
@@ -89,11 +95,33 @@ class MachineViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK
         )
 
+
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["status", "order", "machine"]
+
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        """
+        Starts a task.
+        If no machine is assigned, tries to assign one.
+        Machines have to be on "idle" and of the correct type.
+        Update the status from task, machine and order.
+        """
+        task = self.get_object()
+        try:
+            task = start_auto(task)
+            return Response(
+                    {'detail': f'Task {task.task_id} started (machine: "{task.machine.name})"'},
+                    status=status.HTTP_200_OK
+            )
+        except ValidationError as e:
+            return Response(
+                    {"detail": str(e.detail)},
+                    status=status.HTTP_400_BAD_REQUEST
+            )
 
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
@@ -111,6 +139,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.status = "completed"
         task.save()
 
+        message = f"Task {task.task_id} completed."
+
         # Look for the next task on the order and start it
         next_task = (
             Task.objects
@@ -119,9 +149,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             .order_by("queue_number")
             .first()
         )
-        print(next_task)
-
-        message = f"Task {task.task_id} completed."
 
         if next_task and next_task.status == "pending":
             next_task.status = "in_progress"
@@ -164,6 +191,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 {"detail": f"Machine {machine.name} assigned to Task {task.id}"},
                 status=status.HTTP_200_OK
         )
+
 
 class ActivityLogViewSet(viewsets.ModelViewSet):
     # Give the permissions set in permissions.py
