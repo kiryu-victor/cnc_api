@@ -43,26 +43,28 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
         if order.status in ["cancelled", "completed"]:
             return Response(
-                {"detail": "Cannot start a completed or cancelled order."},
-                status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Cannot start a completed or cancelled order."},
+                    status=status.HTTP_400_BAD_REQUEST
             )
         
-        message = f"Order {order.name} started."
         # Get the first task on the queue
         first_task = order.tasks.order_by("queue_number").first()
-        # Start it
+        # Start it if there is a task
         if first_task:
             try:
                 task = start_auto(first_task)
-                message += f" Order started. First task {task.operation} started."
+                # Change the status and save the updated order
+                order.status = "in_progress"
+                order.save()
+                return Response(
+                        {"detail": f"Task {task.task_id} started (machine: '{task.machine.name}')"},
+                        status=status.HTTP_200_OK
+                )   
             except ValidationError as e:
-                message += f" First task did not start: {str(e.detail)}"
-
-        # Change the status and save the updated order
-        order.status = "in_progress"
-        order.save()
-
-        return Response({"detail": message})
+                return Response(
+                        {"detail": str(e.detail)},
+                        status=status.HTTP_400_BAD_REQUEST
+                )
 
 
 class MachineViewSet(viewsets.ModelViewSet):
@@ -114,7 +116,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         try:
             task = start_auto(task)
             return Response(
-                    {'detail': f'Task {task.task_id} started (machine: "{task.machine.name})"'},
+                    {'detail': f"Task {task.task_id} started (machine: '{task.machine.name})'"},
                     status=status.HTTP_200_OK
             )
         except ValidationError as e:
@@ -128,20 +130,22 @@ class TaskViewSet(viewsets.ModelViewSet):
         """
         Completes a task.
         Tasks that are not "in_progress" cannot be completed.
+        Task status changes.
+        Machine changes to "idle" if it was on "running".
+        Next task (if any) starts.
         """
         task = self.get_object()
+
         if task.status != "in_progress":
             return Response(
-                    {'detail': 'Cannot complete a task that is not "in_progress".'},
+                    {"detail": "Cannot complete a task that is not 'in_progress'."},
                     status=status.HTTP_400_BAD_REQUEST
             )
         # Change the status and save the updated task
         task.status = "completed"
         task.save()
 
-        message = f"Task {task.task_id} completed."
-
-        # Look for the next task on the order and start it
+        # Look for the next task on the order
         next_task = (
             Task.objects
             .filter(
@@ -149,48 +153,23 @@ class TaskViewSet(viewsets.ModelViewSet):
             .order_by("queue_number")
             .first()
         )
-
+        # Start the new task
         if next_task and next_task.status == "pending":
-            next_task.status = "in_progress"
-            next_task.start_time = timezone.now()
-            next_task.save()
-            message += f" Task {next_task.task_id} started."
-
-        return Response(
-                {"detail": message},
-                status=status.HTTP_200_OK
-        )
-    
-    @action(detail=True, methods=["post"])
-    def assign_machine(self, request, pk=None):
-        """
-        Assign a machine to a certain task.
-        Only "pending" tasks can be assigned to a machine.
-        """
-        task = self.get_object()
-
-        if task.status != "pending":
+            next_task = start_auto(next_task)
             return Response(
-                    {"detail": "Cannot assign a machine to a task that is no pending."},
+                    {"detail": f"Task {next_task.task_id} started."},
+                    status=status.HTTP_200_OK
+            )
+        elif not next_task:
+            return Response(
+                    {"detail": "There are no following tasks."},
                     status=status.HTTP_400_BAD_REQUEST
             )
-
-        machine_id = request.data.get("machine_id")
-
-        try:
-            machine = Machine.objects.get(id=machine_id)
-        except Machine.DoesNotExist:
+        else:
             return Response(
-                    {"detail": "That machine does not exist."},
-                    status=status.HTTP_404_NOT_FOUND
+                    {"detail": "Tasks must be pending in order to be started."},
+                    status=status.HTTP_400_BAD_REQUEST
             )
-        # Set the assigned machine and save the updated task
-        task.machine = machine
-        task.save()
-        return Response(
-                {"detail": f"Machine {machine.name} assigned to Task {task.id}"},
-                status=status.HTTP_200_OK
-        )
 
 
 class ActivityLogViewSet(viewsets.ModelViewSet):
