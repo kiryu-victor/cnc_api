@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.contrib.auth.models import User
 
 # Create your models here.
 class Order(models.Model):
@@ -20,7 +21,8 @@ class Order(models.Model):
     name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
-    date_completion = models.DateTimeField()
+    date_start = models.DateTimeField(blank=True, null=True)
+    date_completion = models.DateTimeField(blank=True, null=True)
     status = models.CharField(
             max_length=20,
             choices=STATUS_POSSIBLE,
@@ -109,8 +111,8 @@ class Task(models.Model):
             choices=STATUS_POSSIBLE,
             default="pending"
     )
-    start_time = models.DateTimeField(null=True, blank=True)
-    finish_time = models.DateTimeField(null=True, blank=True)
+    start_time = models.DateTimeField(blank=True, null=True)
+    finish_time = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ["queue_number"]
@@ -145,6 +147,12 @@ class ActivityLog(models.Model):
             choices=LOG_POSSIBLE,
             default="info",
     )
+    user = models.ForeignKey(
+                        User,
+                        on_delete=models.SET_NULL,
+                        null=True,
+                        blank=True
+        )
 
     def __str__(self):
-        return f"[{self.type.upper()}] {self.time} - Task {self.task.task_id}"
+        return f"[{self.log_type.upper()}] - {self.time} - Task: {self.task.task_id}"

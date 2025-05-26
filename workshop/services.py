@@ -1,8 +1,8 @@
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
-from .models import Machine
+from .models import Machine, ActivityLog
 
-
+# Machine
 def start_task_with_auto_machine_assignation(task):
     """
     Start a task.
@@ -47,4 +47,15 @@ def get_available_machines(task):
     return Machine.objects.filter(
         status="idle",
         machine_type=task.required_machine_type
+    )
+
+
+# ActivityLogs
+def create_log_event_task(task, log_type, message, user=None):
+    """Creates a log for a task."""
+    return ActivityLog.objects.create(
+            task=task,
+            log_type=log_type,
+            message=f"[{log_type.upper()}] - {message}",
+            user=user
     )

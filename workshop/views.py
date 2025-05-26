@@ -15,6 +15,7 @@ from .models import Order, Machine, Task, ActivityLog
 from .permissions import IsAdminOrReadOnly
 from .serializers import OrderSerializer, MachineSerializer, TaskSerializer, ActivityLogSerializer
 from .services import start_task_with_auto_machine_assignation as start_auto
+from .services import create_log_event_task
 
 # Create your views here.
 class OrderViewSet(viewsets.ModelViewSet):
@@ -46,20 +47,30 @@ class OrderViewSet(viewsets.ModelViewSet):
                     {"detail": "Cannot start a completed or cancelled order."},
                     status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get the first task on the queue
         first_task = order.tasks.order_by("queue_number").first()
-        # Start it if there is a task
+        
         if first_task:
             try:
+                # Start the task and log it
                 task = start_auto(first_task)
+                create_log_event_task(
+                        task=task,
+                        log_type="info",
+                        message=f"{timezone.now()} - '{task.operation}' started - Machine {task.machine.name}",
+                        user=request.user if request.user.is_authenticated else None
+                )
+
                 # Change the status and save the updated order
                 order.status = "in_progress"
+                order.date_start = timezone.now()
                 order.save()
+                
                 return Response(
                         {"detail": f"Task {task.task_id} started (machine: '{task.machine.name}')"},
                         status=status.HTTP_200_OK
-                )   
+                )
             except ValidationError as e:
                 return Response(
                         {"detail": str(e.detail)},
@@ -83,7 +94,6 @@ class MachineViewSet(viewsets.ModelViewSet):
         new_status = request.data.get("status")
 
         valid_status = [choice[0] for choice in machine._meta.get_field("status").choices]
-        print(valid_status)
         if new_status not in valid_status:
             return Response(
                     {"detail": f"Invalid status. Status can be: {valid_status}"},
@@ -115,6 +125,14 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         try:
             task = start_auto(task)
+            # Log the start
+            create_log_event_task(
+                    task,
+                    log_type="info",
+                    message=f"{timezone.now()} - '{task.operation}' started - Machine {task.machine.name}",
+                    user=request.user if request.user.is_authenticated else None
+            )
+
             return Response(
                     {'detail': f"Task {task.task_id} started (machine: '{task.machine.name})'"},
                     status=status.HTTP_200_OK
@@ -144,25 +162,46 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Change the status and save the updated task
         task.status = "completed"
         task.save()
+        # Create the log for the task completion
+        create_log_event_task(
+                task,
+                log_type="info",
+                message=f"{timezone.now()} - '{task.operation}' completed",
+                user=request.user if request.user.is_authenticated else None
+        )
+        # Change the status for the used machine
+        task.machine.status = "idle"
+        task.machine.save()
 
         # Look for the next task on the order
         next_task = (
             Task.objects
-            .filter(
-                    order=task.order, queue_number__gt=task.queue_number, status="pending")
+            .filter(order=task.order, queue_number__gt=task.queue_number, status="pending")
             .order_by("queue_number")
             .first()
         )
         # Start the new task
         if next_task and next_task.status == "pending":
-            next_task = start_auto(next_task)
+            task = start_auto(next_task)
+            create_log_event_task(
+                    task,
+                    log_type="info",
+                    message=f"{timezone.now()} - '{task.operation}' started - Machine {task.machine.name}",
+                    user=request.user if request.user.is_authenticated else None
+            )
+
             return Response(
-                    {"detail": f"Task {next_task.task_id} started."},
+                    {"detail": f"Task {next_task.task_id} completed."},
                     status=status.HTTP_200_OK
             )
         elif not next_task:
+            # Complete the Order if there are no more tasks
+            task.order.date_completion = timezone.now()
+            task.order.status = "completed"
+            task.order.save()
+            
             return Response(
-                    {"detail": "There are no following tasks."},
+                    {"detail": "There are no following tasks. Order completed."},
                     status=status.HTTP_400_BAD_REQUEST
             )
         else:
