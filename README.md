@@ -44,26 +44,27 @@ I'm making this project because I want to learn REST API. As I want to keep lear
 - PostgreSQL
 - Django
 - DRF
+- Docker
 
 Stretch goals will come after I focus in polishing "unfinished" core implementations that you can find on the **To-do list**.
 
 ## To-do list
-- [ ] **Machine availability logic**
-  - [ ] Automatically assign idle machines
-  - [ ] ...
+- [x] **Machine availability logic**
+  - [x] Auto assign idle machines
+  - [x] Auto free running machines when a task is over
 - [ ] **Preventive maintenance** rules
   - [ ] Based on usage
   - [ ] Based on time
   - [ ] Pre-task maintenance checks (using ETC, for example)
+- [ ] **Status restrictions**
+  - [ ] Machines in "maintenance" cannot start a task.
 - [ ] Create a **report export**
   - [ ] PDF or JSON format
   - [ ] Metrics: usage, time, logs...
-- [ ] **Status restrictions**
-  - [ ] Machines in "maintenance" cannot start a task.
 - [ ] **Tracking**
   - [ ] Users, materials, time, machines used...
   - [ ] Graphics? (matplotlib and such)
-- [ ] Dockerize the project
+- [ ] **Dockerize** the project
   - [ ] Both the app and PostgreSQL DB
 - [ ] ...
 
@@ -71,5 +72,5 @@ Stretch goals will come after I focus in polishing "unfinished" core implementat
 - [ ] Frontend for operators and other personnel.
 - [ ] WebSocket notifications
 > [!NOTE]
-> My other project, [task-generator](https://github.com/kiryu-victor/task_generator) already has WebSocket implemented. For the sake of optimising practice time I am leaving this out of the scope, or for a later stage.
+> My other project, [task-generator](https://github.com/kiryu-victor/task_generator), already has WebSocket implemented. For the sake of optimising practice time I am leaving this out of the scope, or for a later stage.
 - [ ] ...

@@ -161,6 +161,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
         # Change the status and save the updated task
         task.status = "completed"
+        task.finish_time = timezone.now()
         task.save()
         # Create the log for the task completion
         create_log_event_task(
