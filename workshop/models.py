@@ -1,6 +1,9 @@
 import uuid
+
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 # Create your models here.
 class Order(models.Model):
@@ -64,6 +67,21 @@ class Machine(models.Model):
             default="idle"
     )
     location = models.CharField(max_length=50, blank=True)
+
+    # Maintenance - When was the last one and when is going to be the next
+    last_maintenance = models.DateField(null=True, blank=True)
+    maintenance_gap_days = models.PositiveIntegerField(default=10)
+
+    @property
+    def next_maintenance(self):
+        if self.last_maintenance:
+            return self.last_maintenance + timedelta(days=self.maintenance_gap_days)
+        return None
+    
+    @property
+    def needs_maintenance(self):
+        maintenance_date = self.next_maintenance
+        return maintenance_date is not None and timezone.now().date() >= maintenance_date
 
     def __str__(self):
         return self.name
@@ -152,7 +170,7 @@ class ActivityLog(models.Model):
                         on_delete=models.SET_NULL,
                         null=True,
                         blank=True
-        )
+    )
 
     def __str__(self):
         return f"[{self.log_type.upper()}] - {self.time} - Task: {self.task.task_id}"

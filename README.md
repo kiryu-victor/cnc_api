@@ -52,12 +52,12 @@ Stretch goals will come after I focus in polishing "unfinished" core implementat
 - [x] **Machine availability logic**
   - [x] Auto assign idle machines
   - [x] Auto free running machines when a task is over
-- [ ] **Preventive maintenance** rules
+- [x] **Preventive maintenance** rules
   - [ ] Based on usage
-  - [ ] Based on time
-  - [ ] Pre-task maintenance checks (using ETC, for example)
-- [ ] **Status restrictions**
-  - [ ] Machines in "maintenance" cannot start a task.
+  - [x] Based on time
+  - [ ] Pre-task maintenance checks
+- [x] **Status restrictions**
+  - [x] Machines in "maintenance" cannot start a task.
 - [ ] Create a **report export**
   - [ ] PDF or JSON format
   - [ ] Metrics: usage, time, logs...

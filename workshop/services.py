@@ -18,11 +18,14 @@ def start_task_with_auto_machine_assignation(task):
     if not task.machine:
         # Look into the machines with "idle" status and that match the type required
         available_machines = get_available_machines(task)
-        if not available_machines.exists():
+        # Get the machines that don't need maintenance
+        available_machines = [m for m in available_machines if not m.needs_maintenance]
+        
+        if not available_machines:
             raise ValidationError("No machines of the required type available.")
         
         # Assign a machine, change it status, save it
-        machine = available_machines.first()
+        machine = available_machines[0]
         task.machine = machine
         machine.status = "running"
         machine.save()
@@ -43,11 +46,23 @@ def get_available_machines(task):
     """
     Get the machines that are both available for the job (on "idle")
     and that the task requires for its completion.
+    The machine has to have a last maintenance done.
     """
     return Machine.objects.filter(
         status="idle",
         machine_type=task.required_machine_type
-    )
+        )
+
+def check_maintenance_need(machine):
+    """
+    Checks the machine for maintenance.
+    Change the status of the machines that need maintenance to "maintenance"
+    """
+    if machine.needs_maintenance and machine.status == "idle":
+        machine.status = "maintenance"
+        machine.save()
+        return True
+    return False
 
 
 # ActivityLogs

@@ -16,6 +16,7 @@ from .permissions import IsAdminOrReadOnly
 from .serializers import OrderSerializer, MachineSerializer, TaskSerializer, ActivityLogSerializer
 from .services import start_task_with_auto_machine_assignation as start_auto
 from .services import create_log_event_task
+from .services import check_maintenance_need
 
 # Create your views here.
 class OrderViewSet(viewsets.ModelViewSet):
@@ -107,6 +108,20 @@ class MachineViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK
         )
 
+    @action(detail=True, methods=["post"])
+    def pass_maintenance(self, request, pk=None):
+        """Passes the maintenance of a machine."""
+        machine = self.get_object()
+        machine.last_maintenance = timezone.now().date()
+        if machine.status == "maintenance":
+            machine.status = "idle"
+        machine.save()
+
+        return Response(
+            {"detail": f"Machine '{machine.name}' passed its maintenance on {machine.last_maintenance}."},
+            status=status.HTTP_200_OK
+        )
+        
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
@@ -173,6 +188,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Change the status for the used machine
         task.machine.status = "idle"
         task.machine.save()
+        # Create a log for the task that created the maintenance
+        if check_maintenance_need(task.machine):
+            create_log_event_task(
+                    task=task,
+                    log_type="warning",
+                    message=f"'{task.machine.name}' is now under maintenance. Task {task.task_id} was completed.",
+                    user=request.user if request.user.is_authenticated else None
+            )
+
 
         # Look for the next task on the order
         next_task = (

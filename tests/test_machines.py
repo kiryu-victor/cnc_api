@@ -1,6 +1,7 @@
 import pytest
-from rest_framework.test import APIClient
 from django.contrib.auth.models import User, Group
+from rest_framework.test import APIClient
+
 from workshop.models import Machine
 
 @pytest.mark.django_db
