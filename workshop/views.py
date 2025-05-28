@@ -3,11 +3,15 @@ Create the endpoints logic for the classes.
 Each class responds to each resource.
 ModelViewSet simplifies the API creating CRUD for each model.
 """
+import csv
+from django.http import HttpResponse, JsonResponse
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from django.http import HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -244,3 +248,48 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
     serializer_class = ActivityLogSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["log_type", "task"]
+
+    @action(detail=False, methods=["get"], url_path="export/json")
+    def export_json(self, request):
+        """
+        Export ActivityLogs as downloadable JSON
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+
+        # Handle JSON export
+        response = JsonResponse(data, safe=False)
+        # Make the export auto-downloadable
+        response["Content-Disposition"] = 'attachment; filename="activity_logs.json"'
+        return response
+    
+    @action(detail=False, methods=["get"], url_path="export/csv")
+    def export_csv(self, request):
+        """
+        Export ActivityLogs as downloadable CSV
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        # Make the export auto-downloadable
+        response['Content-Disposition'] = 'attachment; filename="activity_logs.csv"'
+        
+        writer = csv.writer(response)
+        # Write the header
+        writer.writerow(['log_id', 'log_type', 'message', 'time', 'task_id', 'user_id', 'username'])
+        
+        # Write the fields for each log in a row
+        for log in queryset:
+            writer.writerow([
+                str(log.log_id),
+                log.log_type,
+                log.message,
+                log.time.isoformat(),
+                str(log.task.task_id) if log.task else '',
+                log.user.id if log.user else '',
+                log.user.username if log.user else ''
+            ])
+        
+        return response

@@ -59,7 +59,9 @@ Stretch goals will come after I focus in polishing "unfinished" core implementat
 - [x] **Status restrictions**
   - [x] Machines in "maintenance" cannot start a task.
 - [ ] Create a **report export**
-  - [ ] PDF or JSON format
+  - [x] PDF or JSON format
+    - [x] JSON format
+    - [x] CSV format
   - [ ] Metrics: usage, time, logs...
 - [ ] **Tracking**
   - [ ] Users, materials, time, machines used...
