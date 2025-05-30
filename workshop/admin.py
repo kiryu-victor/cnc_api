@@ -12,7 +12,7 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(Machine)
 class MachineAdmin(admin.ModelAdmin):
-    list_display = ("name", "machine_type", "status", "location")
+    list_display = ("name", "machine_type", "status", "location", "last_maintenance", "next_maintenance")
     list_filter = ("machine_type", "status")
     search_fields = ("name", "location")
     ordering = ("name",)

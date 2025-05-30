@@ -20,7 +20,7 @@ from .permissions import IsAdminOrReadOnly
 from .serializers import OrderSerializer, MachineSerializer, TaskSerializer, ActivityLogSerializer
 from .services import start_task_with_auto_machine_assignation as start_auto
 from .services import create_log_event_task
-from .services import check_maintenance_need
+from .services import check_need_maintenance_all_machines
 
 # Create your views here.
 class OrderViewSet(viewsets.ModelViewSet):
@@ -37,7 +37,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         Start an order.
         Task must have machines assigned.
-        Only "pending" tasks can be start ed.
+        Only "pending" tasks can be started.
         Then activate the first task.
         """
         order = self.get_object()
@@ -63,11 +63,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                 create_log_event_task(
                         task=task,
                         log_type="info",
-                        message=f"{timezone.now()} - '{task.operation}' started - Machine {task.machine.name}",
+                        message=f"'{task.operation}' started on machine '{task.machine.name}'",
                         user=request.user if request.user.is_authenticated else None
                 )
-
-                # Change the status and save the updated order
+                # Change the status and starting date, then save the updated order
                 order.status = "in_progress"
                 order.date_start = timezone.now()
                 order.save()
@@ -120,6 +119,12 @@ class MachineViewSet(viewsets.ModelViewSet):
         if machine.status == "maintenance":
             machine.status = "idle"
         machine.save()
+        # Log the pass of the maintenance
+        create_log_event_task(
+                    task=None,
+                    log_type="info",
+                    message=f"Machine '{machine.name}' passed its maintenance on {machine.last_maintenance}."
+            )
 
         return Response(
             {"detail": f"Machine '{machine.name}' passed its maintenance on {machine.last_maintenance}."},
@@ -148,12 +153,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             create_log_event_task(
                     task,
                     log_type="info",
-                    message=f"{timezone.now()} - '{task.operation}' started - Machine {task.machine.name}",
+                    message=f"'{task.operation}' started on machine '{task.machine.name}'",
                     user=request.user if request.user.is_authenticated else None
             )
 
             return Response(
-                    {'detail': f"Task {task.task_id} started (machine: '{task.machine.name})'"},
+                    {'detail': f"'{task.task_id}' started on machine '{task.machine.name}'"},
                     status=status.HTTP_200_OK
             )
         except ValidationError as e:
@@ -186,18 +191,24 @@ class TaskViewSet(viewsets.ModelViewSet):
         create_log_event_task(
                 task,
                 log_type="info",
-                message=f"{timezone.now()} - '{task.operation}' completed",
+                message=f"'{task.operation}' completed",
                 user=request.user if request.user.is_authenticated else None
         )
-        # Change the status for the used machine
-        task.machine.status = "idle"
+        # Change the status for the used machine depending if it needs or not maintenance
+        if task.machine.needs_maintenance:
+            task.machine.status = "maintenance"
+        else:
+            task.machine.status = "idle"
         task.machine.save()
+
+        # Checks if there is any machine that needs maintenance but still has "idle" status
+        check_need_maintenance_all_machines()
         # Create a log for the task that created the maintenance
-        if check_maintenance_need(task.machine):
+        if task.machine.status == "maintenance":
             create_log_event_task(
                     task=task,
                     log_type="warning",
-                    message=f"'{task.machine.name}' is now under maintenance. Task {task.task_id} was completed.",
+                    message=f"Task {task.task_id} was completed. '{task.machine.name}' is now under MAINTENANCE.",
                     user=request.user if request.user.is_authenticated else None
             )
 
@@ -215,7 +226,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             create_log_event_task(
                     task,
                     log_type="info",
-                    message=f"{timezone.now()} - '{task.operation}' started - Machine {task.machine.name}",
+                    message=f"'{task.operation}' started on machine '{task.machine.name}'",
                     user=request.user if request.user.is_authenticated else None
             )
 

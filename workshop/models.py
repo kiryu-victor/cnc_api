@@ -69,19 +69,21 @@ class Machine(models.Model):
     location = models.CharField(max_length=50, blank=True)
 
     # Maintenance - When was the last one and when is going to be the next
-    last_maintenance = models.DateField(null=True, blank=True)
+    # A new machine will be on point coming from the manufacturer
+    last_maintenance = models.DateField(auto_now_add=True)
     maintenance_gap_days = models.PositiveIntegerField(default=10)
 
     @property
     def next_maintenance(self):
-        if self.last_maintenance:
-            return self.last_maintenance + timedelta(days=self.maintenance_gap_days)
-        return None
+        return self.last_maintenance + timedelta(days=self.maintenance_gap_days)
     
     @property
     def needs_maintenance(self):
         maintenance_date = self.next_maintenance
-        return maintenance_date is not None and timezone.now().date() >= maintenance_date
+        if timezone.now().date() >= maintenance_date:
+            self.status = "maintenance"
+            return True
+        return False
 
     def __str__(self):
         return self.name
@@ -156,7 +158,9 @@ class ActivityLog(models.Model):
     task = models.ForeignKey(
             Task,
             on_delete=models.CASCADE,
-            related_name="logs"
+            related_name="logs",
+            null=True,
+            blank=True
     )
     time = models.DateTimeField(auto_now_add=True)
     message = models.TextField()
@@ -173,4 +177,6 @@ class ActivityLog(models.Model):
     )
 
     def __str__(self):
-        return f"[{self.log_type.upper()}] - {self.time} - Task: {self.task.task_id}"
+        # If there is a task, get the task_id
+        task = self.task.task_id if self.task else None
+        return f"[{self.log_type.upper()}] - {self.time} - Task: {task}"

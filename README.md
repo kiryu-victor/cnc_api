@@ -55,11 +55,11 @@ Stretch goals will come after I focus in polishing "unfinished" core implementat
 - [x] **Preventive maintenance** rules
   - [ ] Based on usage
   - [x] Based on time
-  - [ ] Pre-task maintenance checks
+  - [x] Pre-task maintenance checks
 - [x] **Status restrictions**
   - [x] Machines in "maintenance" cannot start a task.
 - [ ] Create a **report export**
-  - [x] PDF or JSON format
+  - [x] JSON and CSV format (no PDF)
     - [x] JSON format
     - [x] CSV format
   - [ ] Metrics: usage, time, logs...
