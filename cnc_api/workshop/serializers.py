@@ -1,8 +1,9 @@
 """
 Take a model and convert it to JSON format.
 """
-
 from rest_framework import serializers
+
+
 from .models import Order, Machine, Task, ActivityLog
 
 

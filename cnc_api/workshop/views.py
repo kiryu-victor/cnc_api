@@ -11,7 +11,6 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from django.http import HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -60,10 +59,18 @@ class OrderViewSet(viewsets.ModelViewSet):
             try:
                 # Start the task and log it
                 task = start_auto(first_task)
+                # Create a log when the order start.
+                create_log_event_task(
+                        task,
+                        log_type="info",
+                        message=f"'{task.order.name}' is now IN PROGRESS.",
+                        user=request.user if request.user.is_authenticated else None
+                )
+                # Create a log when the task starts.
                 create_log_event_task(
                         task=task,
                         log_type="info",
-                        message=f"'{task.operation}' started on machine '{task.machine.name}'",
+                        message=f"'{task.operation}' started on machine '{task.machine.name}'.",
                         user=request.user if request.user.is_authenticated else None
                 )
                 # Change the status and starting date, then save the updated order
@@ -153,12 +160,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             create_log_event_task(
                     task,
                     log_type="info",
-                    message=f"'{task.operation}' started on machine '{task.machine.name}'",
+                    message=f"'{task.operation}' started on machine '{task.machine.name}'.",
                     user=request.user if request.user.is_authenticated else None
             )
 
             return Response(
-                    {'detail': f"'{task.task_id}' started on machine '{task.machine.name}'"},
+                    {'detail': f"'{task.task_id}' started on machine '{task.machine.name}'."},
                     status=status.HTTP_200_OK
             )
         except ValidationError as e:
@@ -226,7 +233,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             create_log_event_task(
                     task,
                     log_type="info",
-                    message=f"'{task.operation}' started on machine '{task.machine.name}'",
+                    message=f"'{task.operation}' started on machine '{task.machine.name}'.",
                     user=request.user if request.user.is_authenticated else None
             )
 
@@ -239,6 +246,13 @@ class TaskViewSet(viewsets.ModelViewSet):
             task.order.date_completion = timezone.now()
             task.order.status = "completed"
             task.order.save()
+            # Create a log when the order is completed.
+            create_log_event_task(
+                    task,
+                    log_type="info",
+                    message=f"'{task.order.name}' completed.",
+                    user=request.user if request.user.is_authenticated else None
+            )
             
             return Response(
                     {"detail": "There are no following tasks. Order completed."},

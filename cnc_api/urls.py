@@ -63,4 +63,6 @@ urlpatterns = [
             ),
             name="schema-redoc"
     ),
+    # Frontend
+    path("", include("frontend.urls")),
 ]
