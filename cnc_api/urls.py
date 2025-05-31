@@ -38,7 +38,7 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("workshop.urls")),
+    path("api/", include("cnc_api.workshop.urls")),
     # Path for login/logout
     path("api-auth/", include("rest_framework.urls")),
     # Obtain an access token and refresh
@@ -63,6 +63,4 @@ urlpatterns = [
             ),
             name="schema-redoc"
     ),
-    # Frontend
-    path("", include("frontend.urls")),
 ]

@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 
-from workshop.models import Machine
+from cnc_api.workshop.models import Machine
 
 @pytest.mark.django_db
 def test_create_machine_as_admin():

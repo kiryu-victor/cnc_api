@@ -17,7 +17,7 @@ from datetime import datetime
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cnc_api.settings")
 django.setup()
 # It had to be configured before the import
-from workshop.models import Task
+from cnc_api.workshop.models import Task
 
 
 # Parser with description

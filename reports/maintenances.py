@@ -7,7 +7,7 @@ import pandas as pd
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cnc_api.settings")
 django.setup()
 # It had to be configured before the import
-from workshop.models import ActivityLog
+from cnc_api.workshop.models import ActivityLog
 
 
 # Filter logs to get only the "maintenance" ones

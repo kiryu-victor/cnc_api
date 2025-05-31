@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 
-from workshop.models import Order, Machine, Task
+from cnc_api.workshop.models import Order, Machine, Task
 
 @pytest.mark.django_db
 def test_cannot_start_task_on_machine_on_maintenance():
