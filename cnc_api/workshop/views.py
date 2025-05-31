@@ -4,13 +4,13 @@ Each class responds to each resource.
 ModelViewSet simplifies the API creating CRUD for each model.
 """
 import csv
-from django.http import HttpResponse, JsonResponse
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -31,7 +31,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["status", "date_completion"]
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "put"], name="Start")
     def start(self, request, pk=None):
         """
         Start an order.
@@ -87,6 +87,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                         {"detail": str(e.detail)},
                         status=status.HTTP_400_BAD_REQUEST
                 )
+        else:
+            return Response(
+                        {"detail": f"Order '{order.name}' cannot be started - No tasks are found."},
+                        status=status.HTTP_400_BAD_REQUEST
+                )
 
 
 class MachineViewSet(viewsets.ModelViewSet):
@@ -98,45 +103,31 @@ class MachineViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["status", "machine_type"]
 
-    @action(detail=True, methods=["post"])
-    def set_status(self, request, pk=None):
-        """Change the status of a machine."""
-        machine = self.get_object()
-        new_status = request.data.get("status")
-
-        valid_status = [choice[0] for choice in machine._meta.get_field("status").choices]
-        if new_status not in valid_status:
-            return Response(
-                    {"detail": f"Invalid status. Status can be: {valid_status}"},
-                    status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        machine.status = new_status
-        machine.save()
-        return Response(
-                {"details": f"Machine {machine.name} status changed to '{new_status}'"},
-                status=status.HTTP_200_OK
-        )
-
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "put"], name="Pass maintenance")
     def pass_maintenance(self, request, pk=None):
         """Passes the maintenance of a machine."""
         machine = self.get_object()
         machine.last_maintenance = timezone.now().date()
         if machine.status == "maintenance":
             machine.status = "idle"
-        machine.save()
-        # Log the pass of the maintenance
-        create_log_event_task(
-                    task=None,
-                    log_type="info",
-                    message=f"Machine '{machine.name}' passed its maintenance on {machine.last_maintenance}."
-            )
+            machine.save()
+            # Log the pass of the maintenance
+            message = f"Machine '{machine.name}' passed its maintenance on {machine.last_maintenance}."
+            create_log_event_task(
+                        task=None,
+                        log_type="info",
+                        message=message
+                )
 
-        return Response(
-            {"detail": f"Machine '{machine.name}' passed its maintenance on {machine.last_maintenance}."},
-            status=status.HTTP_200_OK
-        )
+            return Response(
+                {"detail": message},
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"detail": f"Maintenance can only be passed to machines under MAINTENANCE - '{machine.name}' status: {machine.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -145,7 +136,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["status", "order", "machine"]
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "put"])
     def start(self, request, pk=None):
         """
         Starts a task.
@@ -174,7 +165,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
             )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["get", "put"])
     def complete(self, request, pk=None):
         """
         Completes a task.
@@ -256,7 +247,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             
             return Response(
                     {"detail": "There are no following tasks. Order completed."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_200_OK
             )
         else:
             return Response(

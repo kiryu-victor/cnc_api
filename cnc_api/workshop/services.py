@@ -5,7 +5,7 @@ from .models import Machine, ActivityLog
 # Machine
 def start_task_with_auto_machine_assignation(task):
     """
-    Start a task.
+    Starts a task.
     Checks it is "pending".
     Assigns an "idle" machine of the required type.
     Updates the task and machine status.
@@ -19,7 +19,10 @@ def start_task_with_auto_machine_assignation(task):
     # If there is no machine assigned to the task yet
     if not task.machine:
         # Get the machines that can take the task
-        available_machines = get_available_machines(task)
+        available_machines = Machine.objects.filter(
+                status="idle",
+                machine_type=task.required_machine_type
+        )
         if not available_machines:
             raise ValidationError("No machines of the required type available.")
         # Set the first machine on the list that fulfill the requirements
@@ -33,17 +36,6 @@ def start_task_with_auto_machine_assignation(task):
         task.start_time = timezone.now()
         task.save()
     return task
-
-
-def get_available_machines(task):
-    """
-    Get the machines that are both available for the job (on "idle")
-    and that the task requires for its completion.
-    """
-    return Machine.objects.filter(
-        status="idle",
-        machine_type=task.required_machine_type
-        )
 
 
 def check_need_maintenance_all_machines():
@@ -63,7 +55,7 @@ def check_need_maintenance_all_machines():
             create_log_event_task(
                     task=None,
                     log_type="warning",
-                    message=f"{m.name} is now in MAINTENANCE"
+                    message=f"{m.name} is now under MAINTENANCE"
             )
 
 
