@@ -78,4 +78,4 @@ plt.title("Average task time per machine")
 plt.tight_layout()
 
 # Save the graphic as PNG
-plt.savefig("reports/average_task_duration.png")
+plt.savefig("cnc_api/reports/average_task_duration.png")
